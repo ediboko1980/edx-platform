@@ -85,6 +85,9 @@ RELATIVE_DATES_FLAG = CourseWaffleFlag(WAFFLE_FLAG_NAMESPACE, 'relative_dates')
 # end date logic (for self-paced courses) in the date widget
 DATE_WIDGET_V2_FLAG = CourseWaffleFlag(WAFFLE_FLAG_NAMESPACE, 'date_widget_v2')
 
+# Waffle flag to enable user calendar syncing
+CALENDAR_SYNC_FLAG = CourseWaffleFlag(WAFFLE_FLAG_NAMESPACE, 'calendar_sync')
+
 
 def course_home_page_title(course):  # pylint: disable=unused-argument
     """

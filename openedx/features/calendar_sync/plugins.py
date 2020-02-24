@@ -1,0 +1,82 @@
+"""
+Platform plugins to support Calendar Sync toggle.
+"""
+
+
+from django.urls import reverse
+from django.utils.translation import ugettext as _
+
+from lms.djangoapps.courseware.permissions import CALENDAR_SYNC
+from openedx.features.calendar_sync.api import SUBSCRIBE, UNSUBSCRIBE
+from openedx.features.calendar_sync.models import UserCalendarSyncConfig
+from openedx.features.course_experience import CALENDAR_SYNC_FLAG, RELATIVE_DATES_FLAG
+from openedx.features.course_experience.course_tools import CourseTool
+from student.models import CourseEnrollment
+
+
+class CalendarSyncToggleTool(CourseTool):
+    """
+    The Calendar Sync toggle tool.
+    """
+    link_title = _('Calendar Sync')
+    toggle_data = {'toggle_data': ''}
+
+    @classmethod
+    def analytics_id(cls):
+        """
+        Returns an id to uniquely identify this tool in analytics events.
+        """
+        return 'edx.calendar-sync'
+
+    @classmethod
+    def is_enabled(cls, request, course_key):
+        """
+        The Calendar Sync toggle tool is limited to user enabled through a waffle flag.
+        Staff always has access.
+        """
+        if CALENDAR_SYNC_FLAG.is_enabled(course_key) and RELATIVE_DATES_FLAG.is_enabled(course_key):
+            if (request.user.has_perm(CALENDAR_SYNC, course_key) or
+                    CourseEnrollment.is_enrolled(request.user, course_key)):
+                if UserCalendarSyncConfig.is_enabled_for_course(request.user, course_key):
+                    cls.link_title = _('Unsubscribe from calendar updates')
+                    cls.toggle_data['toggle_data'] = UNSUBSCRIBE
+                else:
+                    cls.link_title = _('Subscribe to calendar updates')
+                    cls.toggle_data['toggle_data'] = SUBSCRIBE
+                return True
+        return False
+
+    @classmethod
+    def title(cls):  # pylint: disable=arguments-differ
+        """
+        Returns the title of this tool.
+        """
+        return cls.link_title
+
+    @classmethod
+    def icon_classes(cls):  # pylint: disable=arguments-differ
+        """
+        Returns the icon classes needed to represent this tool.
+        """
+        return 'fa fa-calendar'
+
+    @classmethod
+    def url(cls, course_key):
+        """
+        Returns the URL for this tool for the specified course key.
+        """
+        return reverse('openedx.calendar_sync', args=[course_key])
+
+    @classmethod
+    def http_method(cls):
+        """
+        Returns the uppercase string of the http method used by this course tool
+        """
+        return 'POST'
+
+    @classmethod
+    def data(cls):
+        """
+        Additional data to send with a form submission
+        """
+        return cls.toggle_data

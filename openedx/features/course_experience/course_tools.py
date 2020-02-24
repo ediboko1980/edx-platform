@@ -57,6 +57,23 @@ class CourseTool(object):
         """
         raise NotImplementedError("Must specify a url for a course tool.")
 
+    @classmethod
+    def http_method(cls):
+        """
+        Returns the uppercase string of the http method used by this course tool
+        """
+        return 'GET'
+
+    @classmethod
+    def data(cls):
+        """
+        Additional data to send with a form submission
+        """
+        if cls.http_method() == 'POST':
+            return {}
+        else:
+            return None
+
 
 class CourseToolsPluginManager(PluginManager):
     """
