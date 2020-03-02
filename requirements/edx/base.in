@@ -63,7 +63,6 @@ django-user-tasks
 django-waffle==0.18.0
 django-webpack-loader               # Used to wire webpack bundles into the django asset pipeline
 djangorestframework==3.9.4
-djangorestframework-jwt
 edx-ace
 edx-analytics-data-api-client
 edx-api-doc-tools
@@ -74,7 +73,7 @@ edx-completion
 edx-django-release-util             # Release utils for the edx release pipeline
 edx-django-sites-extensions
 edx-django-utils
-edx-drf-extensions
+-e git+https://github.com/edx/edx-drf-extensions.git@869ed6c406fe63494ba5f2102abd0ffde6ea720c#egg=edx-drf-extensions==4.0.0
 edx-enterprise
 edx-milestones
 edx-organizations
