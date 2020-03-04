@@ -120,7 +120,6 @@ class ProgramEnrollmentsConsoleView(View):
                 'successes': [],
                 'errors': [],
                 'learner_program_enrollments': '',
-                'text': '',
                 'org_keys': self._get_org_keys_with_IdP_provider(),
             }
         )
