@@ -28,7 +28,7 @@ export const ProgramEnrollmentsConsolePage = props => (
     <InputText
       name="external_user_key"
       label="Institution user key from school. For example, GTPersonDirectoryId for GT students"
-      value={props.user_id}
+      value={props.learnerInfo.external_user_key}
     />
     <Button label="Submit" type="submit" className={['btn', 'btn-primary']} />
   </form>
@@ -37,13 +37,15 @@ export const ProgramEnrollmentsConsolePage = props => (
 ProgramEnrollmentsConsolePage.propTypes = {
   successes: PropTypes.arrayOf(PropTypes.string),
   errors: PropTypes.arrayOf(PropTypes.string),
-  user_id: PropTypes.string,
   text: PropTypes.string,
+  learnerInfo: PropTypes.object,
+  orgKeys: PropTypes.arrayOf(Proptypes.string)
 };
 
 ProgramEnrollmentsConsolePage.defaultProps = {
   successes: [],
   errors: [],
-  user_id: '',
   text: '',
+  learnerInfo: '',
+  orgKeys: [],
 };

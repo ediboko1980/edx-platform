@@ -4,10 +4,12 @@ Support tool for changing course enrollments.
 
 
 import csv
+import json
 from uuid import UUID
 
 from django.utils.decorators import method_decorator
 from django.views.generic import View
+from third_party_auth.models import SAMLProviderConfig
 
 from edxmako.shortcuts import render_to_response
 from lms.djangoapps.program_enrollments.api import link_program_enrollments
@@ -111,12 +113,57 @@ class ProgramEnrollmentsConsoleView(View):
 
     @method_decorator(require_support_permission)
     def get(self, request):
+        # We need to get some SSO organizations
         return render_to_response(
             self.CONSOLE_TEMPLATE_PATH,
             {
                 'successes': [],
                 'errors': [],
-                'user_id': '',
+                'learner_program_enrollments': '',
                 'text': '',
+                'org_keys': self._get_org_keys_with_IdP_provider(),
             }
         )
+
+    @method_decorator(require_support_permission)
+    def post(self, request):
+        """
+        Find the learner and the corresponding ProgramEnrollment info
+        based on the posted organization short name and learner's external user key
+        """
+        org_key = request.POST.get('org_key', '').strip()
+        external_user_key = request.POST.get('external_user_key', '').strip()
+        learner_program_enrollments = self._get_learner_and_program_enrollments(
+            org_key,
+            external_user_key
+        )
+        return render_to_response(
+            TEMPLATE_PATH,
+            {
+                'successes': '',
+                'errors': '',
+                'learner_program_enrollments': json.dumps(learner_program_enrollments),
+                'org_keys': self._get_org_keys_with_IdP_provider()
+            }
+        )
+
+    def _get_org_keys_with_IdP_provider(self):
+        """
+        From our Third_party_auth models, return a list
+        of organizations whose SAMLProviders are active and configured
+        """
+        orgs_with_saml = []
+        saml_providers = SAMLProviderConfig.objects.current_set().filter(
+            enabled=True,
+            organization__isnull=False
+        ).select_related('organization')
+
+        for saml_provider in saml_providers:
+            orgs_with_saml.append(saml_provider.organization.short_name)
+
+        return orgs_with_saml
+
+    def _get_learner_and_program_enrollments(self, org_key, external_user_key):
+        """
+        """
+        return {}

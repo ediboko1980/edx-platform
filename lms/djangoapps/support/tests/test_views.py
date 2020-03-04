@@ -18,10 +18,14 @@ from django.http import HttpResponse
 from django.urls import reverse
 from mock import patch
 from pytz import UTC
+from organizations.tests.factories import OrganizationFactory
+from social_django.models import UserSocialAuth
+from third_party_auth.tests.factories import SAMLProviderConfigFactory
 
 from common.test.utils import disable_signal
 from course_modes.models import CourseMode
 from course_modes.tests.factories import CourseModeFactory
+from lms.djangoapps.program_enrollments.tests.factories import ProgramCourseEnrollmentFactory, ProgramEnrollmentFactory
 from lms.djangoapps.verify_student.models import VerificationDeadline
 from student.models import ENROLLED_TO_ENROLLED, CourseEnrollment, CourseEnrollmentAttribute, ManualEnrollmentAudit
 from student.roles import GlobalStaff, SupportStaffRole
@@ -539,3 +543,125 @@ class SupportViewLinkProgramEnrollmentsTests(SupportViewTestCase):
         msg = u"All linking lines must be in the format 'external_user_key,lms_username'"
         render_call_dict = mocked_render.call_args[0][1]
         assert render_call_dict['errors'] == [msg]
+
+
+class ProgramEnrollmentsConsoleView(SupportViewTestCase):
+    """
+    View tests for Program enrollments console
+    """
+    patch_render = patch(
+        'support.views.program_enrollments.render_to_response',
+        return_value=HttpResponse(),
+        autospec=True,
+    )
+
+    def setUp(self):
+        super(ProgramEnrollmentsConsoleView, self).setUp()
+        self.url = reverse("support:program_enrollments_console")
+        SupportStaffRole().add_users(self.user)
+        self.program_uuid = str(uuid4())
+        self.external_user_key = 'abcaaa'
+        # Setup three orgs and their SAML providers
+        self.org_key_list = ['test_org', 'donut_org', 'tri_org']
+        for org_key in self.org_key_list:
+            lms_org = OrganizationFactory(
+                short_name=org_key
+            )
+            SAMLProviderConfigFactory(
+                organization=lms_org,
+                slug=org_key,
+                enabled=True,
+            )
+        self.no_saml_org_key = 'no_saml_org'
+        self.no_saml_lms_org = OrganizationFactory(
+            short_name=self.no_saml_org_key
+        )
+
+        # Setup Program Enrollments and SSO
+        self.user = UserFactory(username='test_user')
+        self.program_enrollment = ProgramEnrollmentFactory.create(
+            external_user_key=self.external_user_key,
+            program_uuid=self.program_uuid,
+            user=self.user
+        )
+        self.course_enrollment = CourseEnrollmentFactory.create(
+            course_id=self.course.id,
+            user=self.user,
+            mode=CourseMode.MASTERS,
+            is_active = True
+        )
+        self.program_course_enrollment = ProgramCourseEnrollmentFactory.create(
+            program_enrollment=self.program_enrollment,
+            course_key=self.course.id,
+            course_enrollment=self.course_enrollment,
+            status='active',
+        )
+        self.user_social_auth = UserSocialAuth.objects.create(
+            user=self.user,
+            uid='{0}:{1}'.format(self.org_key_list[0], self.external_user_key),
+            provider=self.org_key_list[0]
+        )
+
+    def test_initial_rendering(self):
+        response = self.client.get(self.url)
+        content = six.text_type(response.content, encoding='utf-8')
+        expected_organization_serialized = '"orgKeys": {}'.format(json.dumps(self.org_key_list))
+        assert response.status_code == 200
+        assert expected_organization_serialized in content
+        assert '"learnerInfo": ""' in content
+
+    @patch_render
+    def test_post(self, mocked_render):
+        self.client.post(self.url, data={
+            'external_user_key': self.external_user_key,
+            'org_key': self.org_key_list[0],
+        })
+        expected_info = {
+            'user': {
+                'external_user_key': self.external_user_key,
+                'username': self.user.username,
+                'email': self.user.email,
+                'SSO':{
+                    'uid': self.user_social_auth.uid,
+                    'provider':self.org_key_list[0],
+                }
+            },
+            'program_enrollments':[
+                {
+                    'program_enrollment': {
+                        'created': self._serialize_datetime(
+                            self.program_enrollment.created
+                        ),
+                        'modified': self._serialize_datetime(
+                            self.program_enrollment.modified
+                        ),
+                        'program_uuid': self.program_enrollment.program_uuid,
+                        'external_user_key': self.external_user_key,
+                        'username': self.user.username,
+                        'status': self.program_enrollment.status
+                    },
+                    'program_course_enrollment': {
+                        'created': self._serialize_datetime(
+                            self.program_course_enrollment.created
+                        ),
+                        'modified': self._serialize_datetime(
+                            self.program_course_enrollment.modified
+                        ),
+                        'course_enrollment':{
+                            'course_id': str(self.course_enrollment.course_id),
+                            'user': self.user.username,
+                            'is_active': self.course_enrollment.is_active,
+                            'mode': self.course_enrollment.mode,
+                        },
+                        'status': self.program_course_enrollment.status,
+                        'course_key': str(self.program_course_enrollment.course_key),
+                    },
+                },
+            ],
+            
+        }
+        render_call_dict = mocked_render.call_args[0][1]
+        assert json.dumps(expected_info) == render_call_dict['learner_program_enrollments']
+
+    def _serialize_datetime(self, dt):
+        return dt.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
