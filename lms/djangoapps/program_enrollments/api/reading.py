@@ -332,6 +332,22 @@ def fetch_program_course_enrollments_by_students(
     return ProgramCourseEnrollment.objects.filter(**_remove_none_values(filters))
 
 
+def get_program_course_enrollments_by_program_enrollments(program_enrollments):
+    """
+    return the program-course enrollments for a list of ProgramEnrollments.
+
+    Required arguments:
+        * program_enrollments (iterable[ProgramEnrollment])
+
+    Returns: queryset[ProgramCourseEnrollment]
+    """
+    if not program_enrollments:
+        return None
+    return ProgramCourseEnrollment.objects.filter(
+        program_enrollment__in = program_enrollments
+    ).select_related('program_enrollment', 'course_enrollment')
+
+
 def _remove_none_values(dictionary):
     """
     Return a dictionary where key-value pairs with `None` as the value

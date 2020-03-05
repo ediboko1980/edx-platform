@@ -611,10 +611,9 @@ class ProgramEnrollmentsConsoleView(SupportViewTestCase):
         assert '"learnerInfo": ""' in content
 
     @patch_render
-    def test_post(self, mocked_render):
+    def test_post_username(self, mocked_render):
         self.client.post(self.url, data={
-            'external_user_key': self.external_user_key,
-            'org_key': self.org_key_list[0],
+            'edx_user': self.user.username
         })
         expected_info = {
             'user': {
@@ -626,7 +625,7 @@ class ProgramEnrollmentsConsoleView(SupportViewTestCase):
                     'provider':self.org_key_list[0],
                 }
             },
-            'program_enrollments':[
+            'enrollments':[
                 {
                     'program_enrollment': {
                         'created': self._serialize_datetime(
@@ -637,10 +636,9 @@ class ProgramEnrollmentsConsoleView(SupportViewTestCase):
                         ),
                         'program_uuid': self.program_enrollment.program_uuid,
                         'external_user_key': self.external_user_key,
-                        'username': self.user.username,
                         'status': self.program_enrollment.status
                     },
-                    'program_course_enrollment': {
+                    'program_course_enrollments': [{
                         'created': self._serialize_datetime(
                             self.program_course_enrollment.created
                         ),
@@ -649,19 +647,18 @@ class ProgramEnrollmentsConsoleView(SupportViewTestCase):
                         ),
                         'course_enrollment':{
                             'course_id': str(self.course_enrollment.course_id),
-                            'user': self.user.username,
                             'is_active': self.course_enrollment.is_active,
                             'mode': self.course_enrollment.mode,
                         },
                         'status': self.program_course_enrollment.status,
                         'course_key': str(self.program_course_enrollment.course_key),
-                    },
+                    }],
                 },
             ],
             
         }
         render_call_dict = mocked_render.call_args[0][1]
-        assert json.dumps(expected_info) == render_call_dict['learner_program_enrollments']
+        assert expected_info == render_call_dict['learner_program_enrollments']
 
     def _serialize_datetime(self, dt):
-        return dt.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        return dt.strftime('%Y-%m-%dT%H:%M:%S')

@@ -40,7 +40,7 @@ export const ProgramEnrollmentsConsolePage = props => (
         value={props.learnerInfo}
       />
     </div>
-    <Button label="Submit" type="submit" className={['btn', 'btn-primary']} />
+    <Button label="Search" type="submit" className={['btn', 'btn-primary']} />
   </form>
 );
 
