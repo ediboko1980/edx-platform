@@ -30,7 +30,7 @@ from web_fragments.fragment import Fragment
 
 from edxmako.shortcuts import render_to_response, render_to_string
 from lms.djangoapps.courseware.courses import allow_public_access
-from lms.djangoapps.courseware.exceptions import CourseAccessRedirect
+from lms.djangoapps.courseware.exceptions import CourseAccessRedirect, Redirect
 from lms.djangoapps.experiments.utils import get_experiment_user_metadata_context
 from lms.djangoapps.gating.api import get_entrance_exam_score_ratio, get_entrance_exam_usage_key
 from lms.djangoapps.grades.api import CourseGradeFactory
@@ -67,6 +67,8 @@ from ..masquerade import check_content_start_date_for_masquerade_user, setup_mas
 from ..model_data import FieldDataCache
 from ..module_render import get_module_for_descriptor, toc_for_course
 from ..permissions import MASQUERADE_AS_STUDENT
+from ..toggles import should_redirect_to_courseware_microfrontend
+from ..url_helpers import get_microfrontend_redirect_url
 
 from .views import CourseTabView
 
@@ -179,6 +181,23 @@ class CoursewareIndex(View):
         # Set the user in the request to the effective user.
         self.request.user = self.effective_user
 
+    def _redirect_to_learning_mfe(self, request):
+        """
+        Redirect to the new courseware micro frontend,
+        unless this is a time limited exam.
+
+        TODO: remove this once exams work in the new MFE.
+        """
+        if (not self.section.is_time_limited) \
+                and should_redirect_to_courseware_microfrontend(self.course_key) \
+                and not request.user.is_staff:
+            url = get_microfrontend_redirect_url(self.course_key, (
+                self.course_key,
+                self.chapter.location,
+                self.section.location
+            ))
+            raise Redirect(url)
+
     def render(self, request):
         """
         Render the index page.
@@ -195,6 +214,7 @@ class CoursewareIndex(View):
                 self._redirect_if_not_requested_section()
                 self._save_positions()
                 self._prefetch_and_bind_section()
+                self._redirect_to_learning_mfe(request)
 
             check_content_start_date_for_masquerade_user(self.course_key, self.effective_user, request,
                                                          self.course.start, self.chapter.start, self.section.start)
